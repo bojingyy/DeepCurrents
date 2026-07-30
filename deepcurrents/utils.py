@@ -164,6 +164,9 @@ class InputMapping(nn.Module):
         return torch.cat([torch.sin(x), torch.cos(x)], dim=-1)
 
 
+_DEFAULT_MIN_TRIANGLE_AREA = 5e-3
+
+
 class _PointFaceDistance(Function):
     """
     Torch autograd Function wrapper PointFaceDistance Cuda implementation
@@ -171,7 +174,7 @@ class _PointFaceDistance(Function):
 
     @staticmethod
     def forward(ctx, points, points_first_idx, tris, tris_first_idx,
-                max_points):
+                max_points, min_triangle_area=_DEFAULT_MIN_TRIANGLE_AREA):
         """
         Args:
             ctx: Context object used to calculate gradients.
@@ -197,9 +200,11 @@ class _PointFaceDistance(Function):
 
         """
         dists, idxs = _C.point_face_dist_forward(
-            points, points_first_idx, tris, tris_first_idx, max_points
+            points, points_first_idx, tris, tris_first_idx, max_points,
+            min_triangle_area
         )
         ctx.save_for_backward(points, tris, idxs)
+        ctx.min_triangle_area = min_triangle_area
         ctx.mark_non_differentiable(idxs)
         return dists, idxs
 
@@ -208,10 +213,11 @@ class _PointFaceDistance(Function):
     def backward(ctx, grad_dists, grad_idxs):
         grad_dists = grad_dists.contiguous()
         points, tris, idxs = ctx.saved_tensors
+        min_triangle_area = ctx.min_triangle_area
         grad_points, grad_tris = _C.point_face_dist_backward(
-            points, tris, idxs, grad_dists
+            points, tris, idxs, grad_dists, min_triangle_area
         )
-        return grad_points, None, grad_tris, None, None
+        return grad_points, None, grad_tris, None, None, None
 
 
 point_face_distance = _PointFaceDistance.apply

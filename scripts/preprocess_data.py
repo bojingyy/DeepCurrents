@@ -19,7 +19,7 @@ def main(args):
     for f in fnames:
         verts, faces = igl.read_triangle_mesh(fnames[0])
         faces = faces[seg_ids == args.seg_idx]
-        cc = igl.face_components(faces)
+        _, cc = igl.facet_components(faces)
         faces = faces[cc == 0]
         verts = verts - verts[faces].mean((0, 1))
         scale = max(scale, 2 * np.absolute(verts[faces]).max())
@@ -29,7 +29,7 @@ def main(args):
 
         # select segment
         faces = faces[seg_ids == args.seg_idx]
-        cc = igl.face_components(faces)
+        _, cc = igl.facet_components(faces)
         faces = faces[cc == 0]
 
         # normalize data
@@ -41,7 +41,7 @@ def main(args):
 
         # select segment
         faces = faces[seg_ids == args.seg_idx]
-        cc = igl.face_components(faces)
+        _, cc = igl.facet_components(faces)
         faces = faces[cc == 0]
 
         # normalize data
@@ -54,8 +54,7 @@ def main(args):
             R = V.T @ U.T
             verts = verts @ R.T
 
-        verts, faces, _ = igl.faces_first(verts, faces)
-        verts = verts[:faces.max()+1]
+        verts, faces, _, _ = igl.remove_unreferenced(verts, faces)
         igl.write_triangle_mesh(os.path.join(args.out, os.path.basename(f)),
                                 verts, faces)
 

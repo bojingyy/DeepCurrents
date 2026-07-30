@@ -13,7 +13,7 @@ class MeshDataset(torch.utils.data.Dataset):
     def __init__(self, path, jitter=False, n_samples=1000, idx=None):
         fnames = sorted([os.path.join(path, f) for f in os.listdir(path)
                          if os.path.splitext(f)[1] in ('.obj', '.ply')])
-        self.meshes = [(f, igl.read_triangle_mesh(f, dtypef=np.float32))
+        self.meshes = [(f, igl.read_triangle_mesh(f))
                        for f in fnames]
         self.jitter = jitter
         self.n_samples = n_samples
@@ -22,7 +22,7 @@ class MeshDataset(torch.utils.data.Dataset):
         self.weights = []
         self.max_loop_size = 0
         for _, (verts, faces) in self.meshes:
-            loops = igl.all_boundary_loop(faces)
+            loops = igl.boundary_loop_all(faces)
 
             if jitter:
                 bdry = np.zeros((verts.shape[0],), dtype=bool)
@@ -44,7 +44,7 @@ class MeshDataset(torch.utils.data.Dataset):
 
         fname, (verts, faces) = self.meshes[index]
 
-        loops = igl.all_boundary_loop(faces)
+        loops = igl.boundary_loop_all(faces)
         if self.jitter:
             rot = R.from_euler('xyz', np.random.randint(-10, 11, size=3),
                                degrees=True).as_matrix()
@@ -77,8 +77,9 @@ class MeshDataset(torch.utils.data.Dataset):
         verts = verts.astype(np.float32)
 
         face_normals = igl.per_face_normals(
-            verts, faces, np.array([0, 0, 0], dtype=np.float32))
-        vert_normals = igl.per_vertex_normals(verts, faces)
+            verts, faces, np.array([0, 0, 0], dtype=np.float32)
+        ).astype(np.float32)
+        vert_normals = igl.per_vertex_normals(verts, faces).astype(np.float32)
 
         # get boundary
         loop_lens = torch.tensor([len(loop) for loop in loops])
